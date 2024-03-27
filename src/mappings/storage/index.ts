@@ -60,7 +60,7 @@ export async function processStorageBucketCreatedEvent({
   })
   if (invitedWorkerId !== undefined) {
     storageBucket.operatorStatus = new StorageBucketOperatorStatusInvited({
-      workerId: Number(invitedWorkerId),
+      workerId: invitedWorkerId,
     })
   } else {
     storageBucket.operatorStatus = new StorageBucketOperatorStatusMissing()
@@ -101,7 +101,7 @@ export async function processStorageBucketInvitationAcceptedEvent({
     .getRepository(StorageBucket)
     .getByIdOrFail(bucketId.toString())
   storageBucket.operatorStatus = new StorageBucketOperatorStatusActive({
-    workerId: Number(workerId),
+    workerId,
     transactorAccountId: toAddress(hexToU8a(transactorAccountId)),
   })
 }
@@ -129,7 +129,7 @@ export async function processStorageBucketOperatorInvitedEvent({
     .getRepository(StorageBucket)
     .getByIdOrFail(bucketId.toString())
   storageBucket.operatorStatus = new StorageBucketOperatorStatusInvited({
-    workerId: Number(workerId),
+    workerId,
   })
 }
 
@@ -482,7 +482,7 @@ export function processDistributionBucketOperatorInvitedEvent({
     id: distributionOperatorId(bucketId, workerId),
     distributionBucketId: distributionBucketId(bucketId),
     status: DistributionBucketOperatorStatus.INVITED,
-    workerId: Number(workerId),
+    workerId,
   })
 }
 

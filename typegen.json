@@ -38,9 +38,13 @@
         "DistributionBucketFamilyCreated",
         "DistributionBucketFamilyMetadataSet",
         "DistributionBucketFamilyDeleted"
-      ],
-      "calls": [],
-      "storage": []
+      ]
+    },
+    "StorageWorkingGroup": {
+      "events": ["WorkerRemarked", "LeadRemarked"]
+    },
+    "DistributionWorkingGroup": {
+      "events": ["WorkerRemarked", "LeadRemarked"]
     }
   }
 }

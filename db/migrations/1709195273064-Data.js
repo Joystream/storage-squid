@@ -1,5 +1,5 @@
-module.exports = class Data1705406586630 {
-    name = 'Data1705406586630'
+module.exports = class Data1709195273064 {
+    name = 'Data1709195273064'
 
     async up(db) {
         await db.query(`CREATE TABLE "next_entity_id" ("entity_name" character varying NOT NULL, "next_id" bigint NOT NULL, CONSTRAINT "PK_09a3b40db622a65096e7344d7ae" PRIMARY KEY ("entity_name"))`)
@@ -10,7 +10,7 @@ module.exports = class Data1705406586630 {
         await db.query(`CREATE INDEX "IDX_aaf00b2c7d0cba49f97da14fbb" ON "storage_bucket_bag" ("bag_id") `)
         await db.query(`CREATE INDEX "IDX_4c475f6c9300284b095859eec3" ON "storage_bucket_bag" ("storage_bucket_id", "bag_id") `)
         await db.query(`CREATE TABLE "distribution_bucket_family" ("id" character varying NOT NULL, CONSTRAINT "PK_8cb7454d1ec34b0d3bb7ecdee4e" PRIMARY KEY ("id"))`)
-        await db.query(`CREATE TABLE "distribution_bucket_operator" ("id" character varying NOT NULL, "distribution_bucket_id" character varying, "worker_id" integer NOT NULL, "status" character varying(7) NOT NULL, CONSTRAINT "PK_03b87e6e972f414bab94c142285" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "distribution_bucket_operator" ("id" character varying NOT NULL, "distribution_bucket_id" character varying, "worker_id" numeric NOT NULL, "status" character varying(7) NOT NULL, CONSTRAINT "PK_03b87e6e972f414bab94c142285" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "IDX_678dc5427cdde0cd4fef2c07a4" ON "distribution_bucket_operator" ("distribution_bucket_id") `)
         await db.query(`CREATE TABLE "distribution_bucket" ("id" character varying NOT NULL, "family_id" character varying, "bucket_index" integer NOT NULL, "accepting_new_bags" boolean NOT NULL, "distributing" boolean NOT NULL, CONSTRAINT "PK_c90d25fff461f2f5fa9082e2fb7" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "IDX_8cb7454d1ec34b0d3bb7ecdee4" ON "distribution_bucket" ("family_id") `)
@@ -22,13 +22,14 @@ module.exports = class Data1705406586630 {
         await db.query(`CREATE INDEX "IDX_ff8014300b8039dbaed764f51b" ON "storage_data_object" ("storage_bag_id") `)
         await db.query(`CREATE TABLE "video_subtitle" ("id" character varying NOT NULL, "mime_type" text NOT NULL, "asset_id" character varying, CONSTRAINT "PK_2ac3e585fc608e673e7fbf94d8e" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "IDX_b6eabfb8de4128b28d73681020" ON "video_subtitle" ("asset_id") `)
-        await db.query(`CREATE TABLE "storage_bucket_operator_metadata" ("id" character varying NOT NULL, "storage_bucket_id" character varying NOT NULL, "node_endpoint" text, "node_location" jsonb, "extra" text, CONSTRAINT "StorageBucketOperatorMetadata_storageBucket" UNIQUE ("storage_bucket_id") DEFERRABLE INITIALLY DEFERRED, CONSTRAINT "REL_7beffc9530b3f307bc1169cb52" UNIQUE ("storage_bucket_id"), CONSTRAINT "PK_9846a397400ae1a39b21fbd02d4" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "storage_bucket_operator_metadata" ("id" character varying NOT NULL, "storage_bucket_id" character varying NOT NULL, "node_endpoint" text, "node_location" jsonb, "node_operational_status" jsonb, "extra" text, CONSTRAINT "StorageBucketOperatorMetadata_storageBucket" UNIQUE ("storage_bucket_id") DEFERRABLE INITIALLY DEFERRED, CONSTRAINT "REL_7beffc9530b3f307bc1169cb52" UNIQUE ("storage_bucket_id"), CONSTRAINT "PK_9846a397400ae1a39b21fbd02d4" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "IDX_7beffc9530b3f307bc1169cb52" ON "storage_bucket_operator_metadata" ("storage_bucket_id") `)
         await db.query(`CREATE TABLE "distribution_bucket_family_metadata" ("id" character varying NOT NULL, "family_id" character varying NOT NULL, "region" text, "description" text, "areas" jsonb, "latency_test_targets" text array, CONSTRAINT "DistributionBucketFamilyMetadata_family" UNIQUE ("family_id") DEFERRABLE INITIALLY DEFERRED, CONSTRAINT "REL_dd93ca0ea24f3e7a02f11c4c14" UNIQUE ("family_id"), CONSTRAINT "PK_df7a270835bb313d3ef17bdee2f" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "IDX_dd93ca0ea24f3e7a02f11c4c14" ON "distribution_bucket_family_metadata" ("family_id") `)
         await db.query(`CREATE INDEX "IDX_5510d3b244a63d6ec702faa426" ON "distribution_bucket_family_metadata" ("region") `)
-        await db.query(`CREATE TABLE "distribution_bucket_operator_metadata" ("id" character varying NOT NULL, "distirbution_bucket_operator_id" character varying NOT NULL, "node_endpoint" text, "node_location" jsonb, "extra" text, CONSTRAINT "DistributionBucketOperatorMetadata_distirbutionBucketOperator" UNIQUE ("distirbution_bucket_operator_id") DEFERRABLE INITIALLY DEFERRED, CONSTRAINT "REL_69ec9bdc975b95f7dff94a7106" UNIQUE ("distirbution_bucket_operator_id"), CONSTRAINT "PK_9bbecaa12f30e3826922688274f" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "distribution_bucket_operator_metadata" ("id" character varying NOT NULL, "distirbution_bucket_operator_id" character varying NOT NULL, "node_endpoint" text, "node_location" jsonb, "node_operational_status" jsonb, "extra" text, CONSTRAINT "DistributionBucketOperatorMetadata_distirbutionBucketOperator" UNIQUE ("distirbution_bucket_operator_id") DEFERRABLE INITIALLY DEFERRED, CONSTRAINT "REL_69ec9bdc975b95f7dff94a7106" UNIQUE ("distirbution_bucket_operator_id"), CONSTRAINT "PK_9bbecaa12f30e3826922688274f" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "IDX_69ec9bdc975b95f7dff94a7106" ON "distribution_bucket_operator_metadata" ("distirbution_bucket_operator_id") `)
+        await db.query(`CREATE TABLE "worker" ("id" character varying NOT NULL, "runtime_id" numeric NOT NULL, CONSTRAINT "PK_dc8175fa0e34ce7a39e4ec73b94" PRIMARY KEY ("id"))`)
         await db.query(`ALTER TABLE "storage_bucket_bag" ADD CONSTRAINT "FK_791e2f82e3919ffcef8712aa1b9" FOREIGN KEY ("storage_bucket_id") REFERENCES "storage_bucket"("id") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`)
         await db.query(`ALTER TABLE "storage_bucket_bag" ADD CONSTRAINT "FK_aaf00b2c7d0cba49f97da14fbba" FOREIGN KEY ("bag_id") REFERENCES "storage_bag"("id") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`)
         await db.query(`ALTER TABLE "distribution_bucket_operator" ADD CONSTRAINT "FK_678dc5427cdde0cd4fef2c07a43" FOREIGN KEY ("distribution_bucket_id") REFERENCES "distribution_bucket"("id") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`)
@@ -70,6 +71,7 @@ module.exports = class Data1705406586630 {
         await db.query(`DROP INDEX "public"."IDX_5510d3b244a63d6ec702faa426"`)
         await db.query(`DROP TABLE "distribution_bucket_operator_metadata"`)
         await db.query(`DROP INDEX "public"."IDX_69ec9bdc975b95f7dff94a7106"`)
+        await db.query(`DROP TABLE "worker"`)
         await db.query(`ALTER TABLE "storage_bucket_bag" DROP CONSTRAINT "FK_791e2f82e3919ffcef8712aa1b9"`)
         await db.query(`ALTER TABLE "storage_bucket_bag" DROP CONSTRAINT "FK_aaf00b2c7d0cba49f97da14fbba"`)
         await db.query(`ALTER TABLE "distribution_bucket_operator" DROP CONSTRAINT "FK_678dc5427cdde0cd4fef2c07a43"`)

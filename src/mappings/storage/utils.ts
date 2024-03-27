@@ -1,8 +1,11 @@
+import { ISetNodeOperationalStatus, SetNodeOperationalStatus } from '@joystream/metadata-protobuf'
+import { isSet } from '@joystream/metadata-protobuf/utils'
 import { hexToString } from '@polkadot/util'
 import {
   DataObjectDeletedEventData,
   DistributionBucketOperator,
   DistributionBucketOperatorMetadata,
+  DistributionNodeOperationalStatusSetEvent,
   Event,
   StorageBag,
   StorageBagOwner,
@@ -10,7 +13,10 @@ import {
   StorageBagOwnerCouncil,
   StorageBagOwnerMember,
   StorageBagOwnerWorkingGroup,
+  StorageBucket,
+  StorageBucketOperatorMetadata,
   StorageDataObject,
+  StorageNodeOperationalStatusSetEvent,
   VideoSubtitle,
 } from '../../model'
 import { Block } from '../../processor'
@@ -23,7 +29,8 @@ import {
 } from '../../types/v1000'
 import { criticalError } from '../../utils/misc'
 import { EntityManagerOverlay, Flat, RepositoryOverlay } from '../../utils/overlay'
-import { genericEventFields } from '../utils'
+import { genericEventFields, invalidMetadata } from '../utils'
+import { processNodeOperationalStatusMetadata } from './metadata'
 
 export function getDynamicBagId(bagId: DynamicBagIdType): string {
   if (bagId.__kind === 'Channel') {
@@ -205,4 +212,126 @@ export async function deleteDataObjectsByIds(
 
   subtitlesRepository.remove(...currentSubtitles.flat())
   await deleteDataObjects(overlay, block, indexInBlock, extrinsicHash, objects)
+}
+
+export async function processSetNodeOperationalStatusMessage(
+  overlay: EntityManagerOverlay,
+  block: Block,
+  indexInBlock: number,
+  extrinsicHash: string | undefined,
+  workingGroup: 'storageWorkingGroup' | 'distributionWorkingGroup',
+  runtimeWorkerId: bigint | undefined, // ID of the worker who sent the message, undefined if it's the Lead
+  meta: ISetNodeOperationalStatus
+): Promise<void> {
+  const bucketId = meta.bucketId || ''
+
+  // Update the operational status of Storage node
+  if (workingGroup === 'storageWorkingGroup') {
+    const storageBucket = await overlay.getRepository(StorageBucket).getById(bucketId)
+    if (!storageBucket) {
+      return invalidMetadata(
+        SetNodeOperationalStatus,
+        `The storage bucket ${bucketId} does not exist`
+      )
+    } else if (storageBucket.operatorStatus.isTypeOf !== 'StorageBucketOperatorStatusActive') {
+      return invalidMetadata(
+        SetNodeOperationalStatus,
+        `The storage bucket ${bucketId} is not active`
+      )
+      // If the actor is a worker, check if the worker is the operator of the storage bucket
+    } else if (runtimeWorkerId && storageBucket.operatorStatus.workerId !== runtimeWorkerId) {
+      return invalidMetadata(
+        SetNodeOperationalStatus,
+        `The worker ${runtimeWorkerId} is not the operator of the storage bucket ${bucketId}`
+      )
+    }
+
+    // create metadata entity if it does not exist already
+    const metadataEntity =
+      (await overlay.getRepository(StorageBucketOperatorMetadata).getById(bucketId)) ||
+      overlay
+        .getRepository(StorageBucketOperatorMetadata)
+        .new({ id: bucketId, storageBucketId: bucketId })
+
+    if (isSet(meta.operationalStatus)) {
+      const currentNodeOperationalStatusType = metadataEntity.nodeOperationalStatus?.isTypeOf
+
+      metadataEntity.nodeOperationalStatus = processNodeOperationalStatusMetadata(
+        runtimeWorkerId ? 'worker' : 'lead',
+        metadataEntity.nodeOperationalStatus,
+        meta.operationalStatus
+      )
+
+      // event processing
+
+      if (currentNodeOperationalStatusType !== metadataEntity.nodeOperationalStatus?.isTypeOf) {
+        const operationalStatusSetEvent = new StorageNodeOperationalStatusSetEvent({
+          ...genericEventFields(overlay, block, indexInBlock, extrinsicHash),
+          storageBucket: storageBucket.id,
+          operationalStatus: metadataEntity.nodeOperationalStatus || undefined,
+        })
+
+        overlay.getRepository(Event).new({
+          ...genericEventFields(overlay, block, indexInBlock, extrinsicHash),
+          data: operationalStatusSetEvent,
+        })
+      }
+    }
+  }
+
+  // Update the operational status of Distribution node
+  if (workingGroup === 'distributionWorkingGroup') {
+    const workerId = runtimeWorkerId ? runtimeWorkerId.toString() : meta.workerId || ''
+    const distributionOperatorId = `${bucketId}-${workerId}`
+    const operator = await overlay
+      .getRepository(DistributionBucketOperator)
+      .getById(distributionOperatorId)
+
+    if (!operator) {
+      return invalidMetadata(
+        SetNodeOperationalStatus,
+        `The distribution bucket operator ${distributionOperatorId} does not exist`
+      )
+    } else if (runtimeWorkerId && operator.workerId !== runtimeWorkerId) {
+      return invalidMetadata(
+        SetNodeOperationalStatus,
+        `The worker ${runtimeWorkerId} is not the operator of the distribution bucket ${bucketId}`
+      )
+    }
+
+    // create metadata entity if it does not exist already
+    const metadataEntity =
+      (await overlay
+        .getRepository(DistributionBucketOperatorMetadata)
+        .getById(distributionOperatorId)) ||
+      overlay.getRepository(DistributionBucketOperatorMetadata).new({
+        id: distributionOperatorId,
+        distirbutionBucketOperatorId: distributionOperatorId,
+      })
+
+    if (isSet(meta.operationalStatus)) {
+      const currentNodeOperationalStatusType = metadataEntity.nodeOperationalStatus?.isTypeOf
+
+      metadataEntity.nodeOperationalStatus = processNodeOperationalStatusMetadata(
+        runtimeWorkerId ? 'worker' : 'lead',
+        metadataEntity.nodeOperationalStatus,
+        meta.operationalStatus
+      )
+
+      // event processing
+
+      if (currentNodeOperationalStatusType !== metadataEntity.nodeOperationalStatus?.isTypeOf) {
+        const operationalStatusSetEvent = new DistributionNodeOperationalStatusSetEvent({
+          ...genericEventFields(overlay, block, indexInBlock, extrinsicHash),
+          bucketOperator: operator.id,
+          operationalStatus: metadataEntity.nodeOperationalStatus || undefined,
+        })
+
+        overlay.getRepository(Event).new({
+          ...genericEventFields(overlay, block, indexInBlock, extrinsicHash),
+          data: operationalStatusSetEvent,
+        })
+      }
+    }
+  }
 }

@@ -18,7 +18,11 @@ type Event @entity {
   data: EventData!
 }
 
-union EventData = MetaprotocolTransactionStatusEventData | DataObjectDeletedEventData
+union EventData =
+    MetaprotocolTransactionStatusEventData
+  | DataObjectDeletedEventData
+  | StorageNodeOperationalStatusSetEvent
+  | DistributionNodeOperationalStatusSetEvent
 
 type MetaprotocolTransactionResultOK {
   phantom: Int
@@ -40,4 +44,20 @@ type MetaprotocolTransactionStatusEventData {
 type DataObjectDeletedEventData {
   "Runtime ID of deleted the deleted object"
   dataObjectId: ID!
+}
+
+type StorageNodeOperationalStatusSetEvent {
+  "Storage Bucket"
+  storageBucket: StorageBucket!
+
+  "Operational status that was set"
+  operationalStatus: NodeOperationalStatus!
+}
+
+type DistributionNodeOperationalStatusSetEvent {
+  "Distribution bucket operator"
+  bucketOperator: DistributionBucketOperator!
+
+  "Operational status that was set"
+  operationalStatus: NodeOperationalStatus!
 }

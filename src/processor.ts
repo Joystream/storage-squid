@@ -40,6 +40,10 @@ import {
   processStorageOperatorMetadataSetEvent,
   processVoucherChangedEvent,
 } from './mappings/storage'
+import {
+  processWorkingGroupsLeadRemarkedEvent,
+  processWorkingGroupsWorkerRemarkedEvent,
+} from './mappings/workingGroups'
 import { events } from './types'
 import { EntityManagerOverlay } from './utils/overlay'
 
@@ -57,7 +61,10 @@ type MapModuleEvents<Module extends keyof typeof events> = {
     string as `${Capitalize<Module>}.${Capitalize<Event>}`]: typeof events[Module][Event]
 }
 
-type EventsMap = MapModuleEvents<'content'> & MapModuleEvents<'storage'>
+type EventsMap = MapModuleEvents<'content'> &
+  MapModuleEvents<'storage'> &
+  MapModuleEvents<'storageWorkingGroup'> &
+  MapModuleEvents<'distributionWorkingGroup'>
 type EventNames = keyof EventsMap
 
 export type EventHandlerContext<EventName extends EventNames> = {
@@ -110,6 +117,10 @@ const eventHandlers: EventHandlers = {
   'Storage.DistributionBucketFamilyCreated': processDistributionBucketFamilyCreatedEvent,
   'Storage.DistributionBucketFamilyMetadataSet': processDistributionBucketFamilyMetadataSetEvent,
   'Storage.DistributionBucketFamilyDeleted': processDistributionBucketFamilyDeletedEvent,
+  'StorageWorkingGroup.LeadRemarked': processWorkingGroupsLeadRemarkedEvent,
+  'StorageWorkingGroup.WorkerRemarked': processWorkingGroupsWorkerRemarkedEvent,
+  'DistributionWorkingGroup.LeadRemarked': processWorkingGroupsLeadRemarkedEvent,
+  'DistributionWorkingGroup.WorkerRemarked': processWorkingGroupsWorkerRemarkedEvent,
 }
 
 const eventNames = Object.keys(eventHandlers)

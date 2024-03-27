@@ -4,7 +4,10 @@ import {
   IDistributionBucketOperatorMetadata,
   IGeographicalArea,
   INodeLocationMetadata,
+  INodeOperationalStatus,
   IStorageBucketOperatorMetadata,
+  NodeOperationalStatusNoServiceFrom as NodeOperationalStatusNoServiceFromMetadata,
+  NodeOperationalStatusNoServiceUntil as NodeOperationalStatusNoServiceUntilMetadata,
 } from '@joystream/metadata-protobuf'
 import { DecodedMetadataObject } from '@joystream/metadata-protobuf/types'
 import {
@@ -13,22 +16,27 @@ import {
   isValidCountryCode,
   isValidSubdivisionCode,
 } from '@joystream/metadata-protobuf/utils'
+import _ from 'lodash'
+import { Logger } from '../../logger'
 import {
-  StorageBucketOperatorMetadata,
-  NodeLocationMetadata,
-  GeoCoordinates,
-  DistributionBucketFamilyMetadata,
-  GeographicalAreaContinent,
   Continent,
+  DistributionBucketFamilyMetadata,
+  DistributionBucketOperatorMetadata,
+  GeoCoordinates,
+  GeographicalArea,
+  GeographicalAreaContinent,
   GeographicalAreaCountry,
   GeographicalAreaSubdivistion,
-  DistributionBucketOperatorMetadata,
-  GeographicalArea,
+  NodeLocationMetadata,
+  NodeOperationalStatus,
+  NodeOperationalStatusNoService,
+  NodeOperationalStatusNoServiceFrom,
+  NodeOperationalStatusNoServiceUntil,
+  NodeOperationalStatusNormal,
+  StorageBucketOperatorMetadata,
 } from '../../model'
-import { invalidMetadata } from '../utils'
 import { EntityManagerOverlay, Flat } from '../../utils/overlay'
-import { Logger } from '../../logger'
-import _ from 'lodash'
+import { invalidMetadata, parseDateStr } from '../utils'
 
 export const protobufContinentToGraphlContinent: {
   [key in GeographicalAreaProto.Continent]: Continent
@@ -59,6 +67,13 @@ export async function processStorageOperatorMetadata(
   }
   if (isSet(metadataUpdate.location)) {
     processNodeLocationMetadata(operatorMetadata, metadataUpdate.location)
+  }
+  if (isSet(metadataUpdate.operationalStatus)) {
+    operatorMetadata.nodeOperationalStatus = processNodeOperationalStatusMetadata(
+      'worker',
+      operatorMetadata.nodeOperationalStatus,
+      metadataUpdate.operationalStatus
+    )
   }
   if (isSet(metadataUpdate.extra)) {
     operatorMetadata.extra = metadataUpdate.extra || null
@@ -103,6 +118,79 @@ function processNodeLocationMetadata(
   }
 }
 
+export function processNodeOperationalStatusMetadata(
+  actorContext: 'lead' | 'worker',
+  currentStatus: NodeOperationalStatus | null | undefined,
+  meta: INodeOperationalStatus
+): NodeOperationalStatus | null | undefined {
+  const isCurrentStatusForced =
+    currentStatus &&
+    (currentStatus instanceof NodeOperationalStatusNoService ||
+      currentStatus instanceof NodeOperationalStatusNoServiceFrom ||
+      currentStatus instanceof NodeOperationalStatusNoServiceUntil) &&
+    currentStatus.forced
+
+  // if current state is forced by lead, then prevent worker from unilaterally reversing.
+  if (isCurrentStatusForced && actorContext === 'worker') {
+    return currentStatus
+  }
+
+  // For status type Normal
+  if (meta.normal) {
+    const status = new NodeOperationalStatusNormal()
+    status.rationale = meta.normal.rationale
+    return status
+  }
+  // For status type NoService
+  else if (meta.noService) {
+    const status = new NodeOperationalStatusNoService()
+    status.rationale = meta.noService.rationale
+    status.forced = actorContext === 'lead'
+    return status
+  }
+  // For status type NoServiceFrom
+  else if (meta.noServiceFrom) {
+    const from = parseDateStr(meta.noServiceFrom.from)
+
+    // Date must be in the future
+    if (!from || from < new Date()) {
+      invalidMetadata(
+        NodeOperationalStatusNoServiceFromMetadata,
+        `Invalid date for "noServiceFrom"`,
+        { decodedMessage: meta.noServiceFrom }
+      )
+      return currentStatus
+    }
+
+    const status = new NodeOperationalStatusNoServiceFrom()
+    status.rationale = meta.noServiceFrom.rationale
+    status.forced = actorContext === 'lead'
+    status.from = from
+    return status
+  }
+  // For status type NoServiceUntil
+  else if (meta.noServiceUntil) {
+    const from = meta.noServiceUntil.from ? parseDateStr(meta.noServiceUntil.from) : new Date()
+    const until = parseDateStr(meta.noServiceUntil.until)
+
+    // Dates must be in the future and "until" must be after "from"
+    if (!from || !until || from < new Date() || from > until) {
+      invalidMetadata(
+        NodeOperationalStatusNoServiceUntilMetadata,
+        `Invalid date/s for "noServiceUntil"`,
+        { decodedMessage: meta.noServiceUntil }
+      )
+      return currentStatus
+    }
+    const status = new NodeOperationalStatusNoServiceUntil()
+    status.rationale = meta.noServiceUntil.rationale
+    status.forced = actorContext === 'lead'
+    status.from = from
+    status.until = until
+    return status
+  }
+}
+
 export async function processDistributionOperatorMetadata(
   overlay: EntityManagerOverlay,
   operatorId: string,
@@ -120,6 +208,13 @@ export async function processDistributionOperatorMetadata(
   }
   if (isSet(metadataUpdate.location)) {
     processNodeLocationMetadata(operatorMetadata, metadataUpdate.location)
+  }
+  if (isSet(metadataUpdate.operationalStatus)) {
+    operatorMetadata.nodeOperationalStatus = processNodeOperationalStatusMetadata(
+      'worker',
+      operatorMetadata.nodeOperationalStatus,
+      metadataUpdate.operationalStatus
+    )
   }
   if (isSet(metadataUpdate.extra)) {
     operatorMetadata.extra = metadataUpdate.extra || null

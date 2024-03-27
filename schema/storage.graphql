@@ -3,11 +3,11 @@ type StorageBucketOperatorStatusMissing {
 }
 
 type StorageBucketOperatorStatusInvited {
-  workerId: Int!
+  workerId: BigInt!
 }
 
 type StorageBucketOperatorStatusActive {
-  workerId: Int!
+  workerId: BigInt!
   transactorAccountId: String!
 }
 
@@ -62,6 +62,50 @@ type NodeLocationMetadata {
   coordinates: GeoCoordinates
 }
 
+type NodeOperationalStatusNormal {
+  "Reason why node was set to this state"
+  rationale: String
+}
+
+type NodeOperationalStatusNoService {
+  "Whether the state was set by lead (true) or by the operator (false), it is meant to prevent worker from unilaterally reversing."
+  forced: Boolean!
+
+  "Reason why node was set to this state"
+  rationale: String
+}
+
+type NodeOperationalStatusNoServiceFrom {
+  "Whether the state was set by lead (true) or by the operator (false), it is meant to prevent worker from unilaterally reversing."
+  forced: Boolean!
+
+  "The time from which the bucket would have to no service"
+  from: DateTime!
+
+  "Reason why node was set to this state"
+  rationale: String
+}
+
+type NodeOperationalStatusNoServiceUntil {
+  "Whether the state was set by lead (true) or by the operator (false), it is meant to prevent worker from unilaterally reversing."
+  forced: Boolean!
+
+  "The time from which the bucket would have to no service"
+  from: DateTime!
+
+  "The time until which the bucket would have to no service"
+  until: DateTime!
+
+  "Reason why node was set to this state"
+  rationale: String
+}
+
+union NodeOperationalStatus =
+    NodeOperationalStatusNormal
+  | NodeOperationalStatusNoService
+  | NodeOperationalStatusNoServiceFrom
+  | NodeOperationalStatusNoServiceUntil
+
 type StorageBucketOperatorMetadata @entity {
   id: ID!
 
@@ -73,6 +117,9 @@ type StorageBucketOperatorMetadata @entity {
 
   "Optional node location metadata"
   nodeLocation: NodeLocationMetadata
+
+  "Optional node operational status"
+  nodeOperationalStatus: NodeOperationalStatus
 
   "Additional information about the node/operator"
   extra: String
@@ -233,6 +280,9 @@ type DistributionBucketOperatorMetadata @entity {
   "Optional node location metadata"
   nodeLocation: NodeLocationMetadata
 
+  "Optional node operational status"
+  nodeOperationalStatus: NodeOperationalStatus
+
   "Additional information about the node/operator"
   extra: String
 }
@@ -250,7 +300,7 @@ type DistributionBucketOperator @entity {
   distributionBucket: DistributionBucket!
 
   "ID of the distribution group worker"
-  workerId: Int!
+  workerId: BigInt!
 
   "Current operator status"
   status: DistributionBucketOperatorStatus!
